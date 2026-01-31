@@ -1,152 +1,23 @@
-// import { useEffect, useState } from "react";
-// import { useParams, useNavigate } from "react-router-dom";
-// import client from "../config";
-// import Swal from "sweetalert2";
-
-// export default function EditResume() {
-//     const { id } = useParams();
-//     const navigate = useNavigate();
-
-//     const [resumeData, setResumeData] = useState({
-//         name: "",
-//         email: "",
-//         contact: "",
-//         education: "",
-//         experience: "",
-//         skills: "",
-//         projects: "",
-//         languages: "",
-//         summary: "",
-//     });
-
-//     const fetchResume = async () => {
-//         const { data, error } = await client
-//             .from("resumes")
-//             .select("*")
-//             .eq("id", id)
-//             .single();
-
-//         if (error) {
-//             Swal.fire("Error", error.message, "error");
-//             navigate("/dashboard");
-//         } else {
-//             setResumeData(data);
-//         }
-//     };
-
-//     useEffect(() => {
-//         fetchResume();
-//     }, []);
-
-//     const handleChange = (e) => {
-//         setResumeData({ ...resumeData, [e.target.name]: e.target.value });
-//     };
-
-//     const handleUpdate = async () => {
-//         const { error } = await client
-//             .from("resumes")
-//             .update(resumeData)
-//             .eq("id", id);
-
-//         if (error) {
-//             Swal.fire("Error", error.message, "error");
-//         } else {
-//             Swal.fire("Success", "Resume updated successfully", "success");
-//             navigate("/dashboard");
-//         }
-//     };
-
-//     return (
-//         <div className="max-w-2xl mx-auto p-6">
-//             <h1 className="text-2xl font-bold mb-4">Edit Resume</h1>
-//             <div className="space-y-4">
-//                 <input
-//                     name="name"
-//                     value={resumeData.name}  // <-- if resumeData.name is undefined, React throws warning
-//                     onChange={handleChange}
-//                 />
-//                 <input
-//                     name="email"
-//                     value={resumeData.email}
-//                     onChange={handleChange}
-//                     placeholder="Email"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <input
-//                     name="contact"
-//                     value={resumeData.contact}
-//                     onChange={handleChange}
-//                     placeholder="Contact"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="education"
-//                     value={resumeData.education}
-//                     onChange={handleChange}
-//                     placeholder="Education"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="experience"
-//                     value={resumeData.experience}
-//                     onChange={handleChange}
-//                     placeholder="Work Experience"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="skills"
-//                     value={resumeData.skills}
-//                     onChange={handleChange}
-//                     placeholder="Skills"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="projects"
-//                     value={resumeData.projects}
-//                     onChange={handleChange}
-//                     placeholder="Projects / Certifications"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="languages"
-//                     value={resumeData.languages}
-//                     onChange={handleChange}
-//                     placeholder="Languages"
-//                     className="w-full border p-2 rounded"
-//                 />
-//                 <textarea
-//                     name="summary"
-//                     value={resumeData.summary}
-//                     onChange={handleChange}
-//                     placeholder="Profile Summary"
-//                     className="w-full border p-2 rounded"
-//                 />
-//             </div>
-//             <button
-//                 onClick={handleUpdate}
-//                 className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:scale-105 transition"
-//             >
-//                 Update Resume
-//             </button>
-//         </div>
-//     );
-// }
-
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import client from "../config";
 import Swal from "sweetalert2";
 
+const safeArray = (value, template) => {
+    if (Array.isArray(value)) return value;
+    return [template];
+};
+
 export default function EditResume() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    const [resumeData, setResumeData] = useState(null); // start as null for loading check
+    const [form, setForm] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchResume = async () => {
-        try {
+    // 🔹 Fetch resume
+    useEffect(() => {
+        const fetchResume = async () => {
             const { data, error } = await client
                 .from("resumes")
                 .select("*")
@@ -157,13 +28,26 @@ export default function EditResume() {
                 Swal.fire("Error", error.message, "error");
                 navigate("/dashboard");
             } else {
-                // make sure all fields are strings to avoid controlled/uncontrolled warning
-                setResumeData({
-                    name: data.name || "",
+                setForm({
+                    fullName: data.full_name || "",
+                    title: data.title || "",
+                    description: data.description || "",
                     email: data.email || "",
-                    contact: data.contact || "",
-                    education: data.education ? JSON.stringify(data.education) : "",
-                    experience: data.experience ? JSON.stringify(data.experience) : "",
+                    phone: data.phone || "",
+                    address: data.address || "",
+
+                    education: safeArray(data.education, {
+                        degree: "",
+                        school: "",
+                        year: "",
+                    }),
+
+                    experience: safeArray(data.experience, {
+                        role: "",
+                        company: "",
+                        duration: "",
+                    }),
+
                     skills: data.skills || "",
                     projects: data.projects || "",
                     languages: data.languages || "",
@@ -171,116 +55,193 @@ export default function EditResume() {
                 });
 
             }
-        } catch (err) {
-            Swal.fire("Error", err.message, "error");
-            navigate("/dashboard");
-        } finally {
             setLoading(false);
+        };
+
+        fetchResume();
+    }, [id, navigate]);
+
+    // 🔹 Handle change
+    const handleChange = (e, section, index, field) => {
+        if (section === "education" || section === "experience") {
+            const updated = [...form[section]];
+            updated[index][field] = e.target.value;
+            setForm({ ...form, [section]: updated });
+        } else {
+            setForm({ ...form, [section]: e.target.value });
         }
     };
 
-    useEffect(() => {
-        fetchResume();
-    }, []);
-
-    const handleChange = (e) => {
-        setResumeData({ ...resumeData, [e.target.name]: e.target.value });
+    const addSectionItem = (section) => {
+        setForm({
+            ...form,
+            [section]: [
+                ...form[section],
+                Object.fromEntries(Object.keys(form[section][0]).map((k) => [k, ""])),
+            ],
+        });
     };
-    
+
+    // 🔹 Update resume
     const handleUpdate = async () => {
         const { error } = await client
             .from("resumes")
             .update({
-                ...resumeData,
-                education: resumeData.education ? JSON.parse(resumeData.education) : [],
-                experience: resumeData.experience ? JSON.parse(resumeData.experience) : [],
+                full_name: form.fullName,
+                title: form.title,
+                description: form.description,
+                email: form.email,
+                phone: form.phone,
+                address: form.address,
+                education: form.education,
+                experience: form.experience,
+                skills: form.skills,
+                projects: form.projects,
+                languages: form.languages,
+                summary: form.summary,
             })
             .eq("id", id);
 
-        if (error) Swal.fire("Error", error.message, "error");
-        else {
-            Swal.fire("Success", "Resume updated successfully", "success");
+        if (error) {
+            Swal.fire("Error", error.message, "error");
+        } else {
+            Swal.fire("Updated 🎉", "Resume updated successfully", "success");
             navigate("/dashboard");
         }
     };
 
-
-    if (loading || !resumeData) return <p className="text-center mt-10">Loading...</p>;
+    if (loading || !form)
+        return <p className="text-center mt-10">Loading...</p>;
 
     return (
-        <div className="max-w-2xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-4">Edit Resume</h1>
-            <div className="space-y-4">
-                <input
-                    name="name"
-                    value={resumeData.name}
-                    onChange={handleChange}
-                    placeholder="Full Name"
-                    className="w-full border p-2 rounded"
-                />
-                <input
-                    name="email"
-                    value={resumeData.email}
-                    onChange={handleChange}
-                    placeholder="Email"
-                    className="w-full border p-2 rounded"
-                />
-                <input
-                    name="contact"
-                    value={resumeData.contact}
-                    onChange={handleChange}
-                    placeholder="Contact"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="education"
-                    value={resumeData.education}
-                    onChange={handleChange}
-                    placeholder="Education"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="experience"
-                    value={resumeData.experience}
-                    onChange={handleChange}
-                    placeholder="Work Experience"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="skills"
-                    value={resumeData.skills}
-                    onChange={handleChange}
-                    placeholder="Skills"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="projects"
-                    value={resumeData.projects}
-                    onChange={handleChange}
-                    placeholder="Projects / Certifications"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="languages"
-                    value={resumeData.languages}
-                    onChange={handleChange}
-                    placeholder="Languages"
-                    className="w-full border p-2 rounded"
-                />
-                <textarea
-                    name="summary"
-                    value={resumeData.summary}
-                    onChange={handleChange}
-                    placeholder="Profile Summary"
-                    className="w-full border p-2 rounded"
-                />
+        <div className="min-h-screen bg-gray-100 p-6">
+            <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow">
+                <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">
+                    Edit Resume
+                </h2>
+
+                {/* Personal Info */}
+                <h3 className="font-semibold mb-2">Personal Information</h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <input
+                        value={form.fullName}
+                        onChange={(e) => handleChange(e, "fullName")}
+                        placeholder="Full Name"
+                        className="p-3 border rounded-lg"
+                    />
+                    <input
+                        value={form.title}
+                        onChange={(e) => handleChange(e, "title")}
+                        placeholder="Professional Title"
+                        className="p-3 border rounded-lg"
+                    />
+                    <input
+                        value={form.description}
+                        onChange={(e) => handleChange(e, "description")}
+                        placeholder="Professional Description"
+                        className="p-3 border rounded-lg md:col-span-2"
+                    />
+                    <input
+                        value={form.email}
+                        onChange={(e) => handleChange(e, "email")}
+                        placeholder="Email"
+                        className="p-3 border rounded-lg"
+                    />
+                    <input
+                        value={form.phone}
+                        onChange={(e) => handleChange(e, "phone")}
+                        placeholder="Phone"
+                        className="p-3 border rounded-lg"
+                    />
+                    <input
+                        value={form.address}
+                        onChange={(e) => handleChange(e, "address")}
+                        placeholder="Address"
+                        className="p-3 border rounded-lg md:col-span-2"
+                    />
+                </div>
+
+                {/* Education */}
+                <h3 className="font-semibold mb-2">Education</h3>
+                {form.education.map((edu, idx) => (
+                    <div key={idx} className="grid md:grid-cols-3 gap-4 mb-3">
+                        <input
+                            value={edu.degree}
+                            onChange={(e) =>
+                                handleChange(e, "education", idx, "degree")
+                            }
+                            placeholder="Degree"
+                            className="p-3 border rounded-lg"
+                        />
+                        <input
+                            value={edu.school}
+                            onChange={(e) =>
+                                handleChange(e, "education", idx, "school")
+                            }
+                            placeholder="School"
+                            className="p-3 border rounded-lg"
+                        />
+                        <input
+                            value={edu.year}
+                            onChange={(e) =>
+                                handleChange(e, "education", idx, "year")
+                            }
+                            placeholder="Year"
+                            className="p-3 border rounded-lg"
+                        />
+                    </div>
+                ))}
+                <button
+                    onClick={() => addSectionItem("education")}
+                    className="text-blue-600 mb-4"
+                >
+                    + Add More Education
+                </button>
+
+                {/* Experience */}
+                <h3 className="font-semibold mb-2">Experience</h3>
+                {form.experience.map((exp, idx) => (
+                    <div key={idx} className="grid md:grid-cols-3 gap-4 mb-3">
+                        <input
+                            value={exp.role}
+                            onChange={(e) =>
+                                handleChange(e, "experience", idx, "role")
+                            }
+                            placeholder="Role"
+                            className="p-3 border rounded-lg"
+                        />
+                        <input
+                            value={exp.company}
+                            onChange={(e) =>
+                                handleChange(e, "experience", idx, "company")
+                            }
+                            placeholder="Company"
+                            className="p-3 border rounded-lg"
+                        />
+                        <input
+                            value={exp.duration}
+                            onChange={(e) =>
+                                handleChange(e, "experience", idx, "duration")
+                            }
+                            placeholder="Duration"
+                            className="p-3 border rounded-lg"
+                        />
+                    </div>
+                ))}
+                <button
+                    onClick={() => addSectionItem("experience")}
+                    className="text-blue-600 mb-4"
+                >
+                    + Add More Experience
+                </button>
+
+                <button
+                    onClick={handleUpdate}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold"
+                >
+                    Update Resume
+                </button>
             </div>
-            <button
-                onClick={handleUpdate}
-                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:scale-105 transition"
-            >
-                Update Resume
-            </button>
         </div>
     );
 }
